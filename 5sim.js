@@ -1,275 +1,209 @@
 // ==UserScript==
-// @name         Balance Changer to 200
+// @name         5sim Balance Changer to 200
 // @namespace    http://tampermonkey.net/
-// @version      1.0
-// @description  Change balance to 200 on any website
+// @version      2.0
+// @description  Change balance to 200 on 5sim.net website
 // @author       You
-// @match        *://*/*
+// @match        https://5sim.net/*
+// @match        http://5sim.net/*
 // @grant        none
+// @run-at       document-end
 // ==/UserScript==
 
 (function() {
     'use strict';
 
-    // ফাংশন ব্যালেন্স টেক্সট খুঁজে বের করে চেঞ্জ করবে
-    function changeBalance() {
-        // সব টেক্সট নোডের মধ্যে সার্চ করবে
+    console.log('5sim Balance Changer Script Loaded!');
+
+    // ব্যালেন্স চেঞ্জ করার মূল ফাংশন
+    function changeBalanceTo200() {
+        console.log('Running balance changer...');
+
+        // ১। প্রথমে সব টেক্সট নোড চেক করি
+        const textNodes = [];
         const walker = document.createTreeWalker(
             document.body,
             NodeFilter.SHOW_TEXT,
-            null,
-            false
-        );
-        
-        let node;
-        while (node = walker.nextNode()) {
-            // যদি টেক্সটে "Recharge" থাকে এবং তার পরের span এ সংখ্যা থাকে
-            if (node.textContent.includes('Recharge')) {
-                // পরবর্তী এলিমেন্ট চেক করি
-                let parent = node.parentNode;
-                if (parent) {
-                    // সব sibling চেক করি
-                    let nextSibling = parent.nextSibling;
-                    while (nextSibling) {
-                        if (nextSibling.nodeType === Node.ELEMENT_NODE && 
-                            nextSibling.tagName === 'SPAN' && 
-                            /^\d+$/.test(nextSibling.textContent.trim())) {
-                            nextSibling.textContent = '২০০';
-                            console.log('ব্যালেন্স ২০০ করা হয়েছে!');
-                            return;
-                        }
-                        nextSibling = nextSibling.nextSibling;
+            {
+                acceptNode: function(node) {
+                    // খালি টেক্সট স্কিপ
+                    if (!node.textContent.trim()) {
+                        return NodeFilter.FILTER_REJECT;
                     }
-                }
-            }
-            
-            // অন্য সাধারণ প্যাটার্নগুলোর জন্য
-            const balancePatterns = [
-                /Balance:?\s*\$?\d+/i,
-                /ব্যালেন্স:?\s*\$?\d+/i,
-                /ব্যালেন্স\s*=\s*\d+/i,
-                /Recharge.*\$?\d+/i,
-                /\$\d+/
-            ];
-            
-            for (let pattern of balancePatterns) {
-                if (pattern.test(node.textContent)) {
-                    // সংখ্যা খুঁজে বের করে ২০০ দিয়ে রিপ্লেস করি
-                    node.textContent = node.textContent.replace(/\$\d+/, '$২০০');
-                    node.textContent = node.textContent.replace(/\b\d+\b/, '২০০');
-                    console.log('ব্যালেন্স আপডেট করা হয়েছে:', node.textContent);
-                }
-            }
-        }
-        
-        // SVG এর পরের টেক্সট চেক করা
-        const svgElements = document.querySelectorAll('svg');
-        svgElements.forEach(svg => {
-            let nextNode = svg.nextSibling;
-            while (nextNode) {
-                if (nextNode.nodeType === Node.TEXT_NODE && nextNode.textContent.trim().match(/^\d+$/)) {
-                    nextNode.textContent = '200';
-                    console.log('SVG এর পরের ব্যালেন্স ২০০ করা হয়েছে');
-                    return;
-                }
-                nextNode = nextNode.nextSibling;
-            }
-        });
-    }
-
-    // পেজ লোড হওয়ার পর একবার রান করবে
-    setTimeout(changeBalance, 2000);
-    
-    // DOM পরিবর্তন হলে আবার চেক করবে (SPA এজাক্স সাইটের জন্য)
-    const observer = new MutationObserver(changeBalance);
-    observer.observe(document.body, { childList: true, subtree: true });
-
-})();                    if (!node.textContent.trim()) return NodeFilter.FILTER_REJECT;
                     return NodeFilter.FILTER_ACCEPT;
                 }
             },
             false
         );
-        
+
         let node;
-        const patterns = [
-            // ইন্টারন্যাশনাল প্যাটার্ন
-            /\$\s*0(?:\.0+)?\b/i,                // $0
-            /\b0\s*(?:USD|BDT|TK|৳|₹|€|£)/i,      // 0 USD
-            /\bBalance:\s*0(?:\.0+)?\b/i,        // Balance: 0
-            /\bBal:\s*0(?:\.0+)?\b/i,            // Bal: 0
-            /\bAvailable:\s*0(?:\.0+)?\b/i,      // Available: 0
-            /\bCurrent\s+Balance:\s*0(?:\.0+)?\b/i,
-            
-            // বাংলা প্যাটার্ন
-            /\bব্যালেন্স:\s*০+\b/,
-            /\bব্যালেন্স\s*=\s*০+\b/,
-            /\bজমা:\s*০+\b/,
-            /\bঅবশিষ্ট:\s*০+\b/,
-            
-            // শুধু সংখ্যা (তবে শুধু ০ বা ০.০০)
-            /\b0(?:\.00)?\b/,
-            /\b০+\b/
-        ];
-        
         while (node = walker.nextNode()) {
-            // ইতিমধ্যে চেঞ্জ করা এলিমেন্ট স্কিপ করি
-            if (changedElements.has(node)) continue;
-            
-            let originalText = node.textContent;
+            textNodes.push(node);
+        }
+
+        // ২। টেক্সট নোডে সার্চ করে ব্যালেন্স চেঞ্জ
+        textNodes.forEach(textNode => {
+            const originalText = textNode.textContent;
             let newText = originalText;
-            
-            // সব প্যাটার্ন চেক করি
+
+            // ব্যালেন্স প্যাটার্ন (5sim সাইটের জন্য অপটিমাইজড)
+            const patterns = [
+                // $0.00, $0, 0.00 USD
+                /\$\s*0(?:\.00)?\b/i,
+                /\b0(?:\.00)?\s*(?:USD|EUR|RUB|UAH|KZT|BYN)/i,
+                
+                // Balance: 0, Balance: 0.00
+                /Balance:\s*0(?:\.00)?/i,
+                /Баланс:\s*0(?:\.00)?/i, // রাশিয়ান
+                
+                // Recharge/টপ-আপ related
+                /Recharge.*\$\d+/i,
+                /Top-up.*\$\d+/i,
+                /Пополнить.*\d+/i, // রাশিয়ান
+                
+                // সংখ্যা মাত্র (শুধু ০ বা ০.০০)
+                /^\s*0(?:\.00)?\s*$/,
+                /^\s*0\s*$/,
+                
+                // ইনপুট ভ্যালু
+                /value\s*=\s*["']0(?:\.00)?["']/i
+            ];
+
             patterns.forEach(pattern => {
                 if (pattern.test(originalText)) {
-                    // রিপ্লেস করি
-                    newText = originalText.replace(/\b0(?:\.00)?\b/g, '200')
-                                         .replace(/\b০+\b/g, '200')
-                                         .replace(/\$0/, '$200')
-                                         .replace(/0\s*(USD|BDT|TK|৳|₹|€|£)/i, '200 $1')
-                                         .replace(/Balance:\s*0/i, 'Balance: 200')
-                                         .replace(/Bal:\s*0/i, 'Bal: 200')
-                                         .replace(/ব্যালেন্স:\s*০+/g, 'ব্যালেন্স: 200')
-                                         .replace(/ব্যালেন্স\s*=\s*০+/g, 'ব্যালেন্স = 200');
+                    // রিপ্লেসমেন্ট লজিক
+                    newText = originalText
+                        .replace(/\$\s*0(?:\.00)?/gi, '$200')
+                        .replace(/\b0(?:\.00)?\s*(USD|EUR|RUB|UAH|KZT|BYN)/gi, '200 $1')
+                        .replace(/Balance:\s*0(?:\.00)?/gi, 'Balance: 200')
+                        .replace(/Баланс:\s*0(?:\.00)?/gi, 'Баланс: 200')
+                        .replace(/Recharge.*\$\d+/gi, 'Recharge $200')
+                        .replace(/Top-up.*\$\d+/gi, 'Top-up $200')
+                        .replace(/\b0(?:\.00)?\b/gi, '200');
                 }
             });
-            
-            // টেক্সট চেঞ্জ হয়েছে কিনা চেক
+
             if (newText !== originalText) {
-                node.textContent = newText;
-                
-                // প্যারেন্ট এলিমেন্টে ডাটা এট্রিবিউট সেট করি
-                if (node.parentNode && node.parentNode.nodeType === Node.ELEMENT_NODE) {
-                    node.parentNode.setAttribute('data-balance-changed', 'true');
-                }
-                
-                changedElements.add(node);
-                console.log('ব্যালেন্স চেঞ্জ করা হয়েছে:', originalText, '→', newText);
+                textNode.textContent = newText;
+                console.log('Changed:', originalText, '→', newText);
             }
-        }
+        });
+
+        // ৩। সব span, div, button, a elements চেক করি
+        const elementsToCheck = ['span', 'div', 'p', 'td', 'li', 'a', 'button', 'label', 'strong', 'b'];
         
-        // বিশেষভাবে Recharge এর ব্যালেন্স চেঞ্জ করি
-        const rechargeElements = document.querySelectorAll('*');
-        rechargeElements.forEach(element => {
-            if (changedElements.has(element)) return;
-            
-            const text = element.textContent || element.innerText || '';
-            if (text.includes('Recharge') || text.includes('RECHARGE') || text.includes('recharge')) {
-                // এর child বা sibling এ ০ খুঁজি
-                const children = element.children;
-                for (let child of children) {
-                    if (child.textContent.trim() === '0' || 
-                        child.textContent.trim() === '০' ||
-                        child.textContent.trim() === '$0') {
-                        child.textContent = '200';
-                        child.setAttribute('data-balance-changed', 'true');
-                        changedElements.add(child);
+        elementsToCheck.forEach(tag => {
+            const elements = document.querySelectorAll(tag);
+            elements.forEach(el => {
+                const originalHTML = el.innerHTML;
+                let newHTML = originalHTML;
+
+                // HTML ভিতরে ০/০.০০ খুঁজে ২০০ করি
+                if (originalHTML.includes('0') || originalHTML.includes('0.00') || originalHTML.includes('$0')) {
+                    newHTML = originalHTML
+                        .replace(/\$0(?:\.00)?/g, '$200')
+                        .replace(/0\.00/g, '200.00')
+                        .replace(/>\s*0\s*</g, '>200<')
+                        .replace(/>\s*0\.00\s*</g, '>200.00<')
+                        .replace(/Balance:\s*0(?:\.00)?/gi, 'Balance: 200')
+                        .replace(/value=["']0(?:\.00)?["']/gi, 'value="200"');
+
+                    if (newHTML !== originalHTML) {
+                        el.innerHTML = newHTML;
+                        console.log('HTML Changed in', tag, ':', el);
                     }
                 }
-                
-                // sibling চেক
-                let sibling = element.nextSibling;
-                while (sibling) {
-                    if (sibling.nodeType === Node.ELEMENT_NODE && 
-                        (sibling.textContent.trim() === '0' || 
-                         sibling.textContent.trim() === '০' ||
-                         sibling.textContent.trim() === '$0')) {
-                        sibling.textContent = '200';
-                        sibling.setAttribute('data-balance-changed', 'true');
-                        changedElements.add(sibling);
-                    }
-                    sibling = sibling.nextSibling;
+            });
+        });
+
+        // ৪। ইনপুট ফিল্ড চেক করি
+        const inputs = document.querySelectorAll('input[type="text"], input[type="number"], input[type="tel"]');
+        inputs.forEach(input => {
+            if (input.value === '0' || input.value === '0.00' || input.value === '$0') {
+                input.value = '200';
+                console.log('Input changed:', input);
+            }
+        });
+
+        // ৫। বিশেষভাবে SVG + টেক্সট কম্বিনেশন (5sim এর UI অনুযায়ী)
+        const svgElements = document.querySelectorAll('svg');
+        svgElements.forEach(svg => {
+            // SVG এর পরে যা আছে সব চেক
+            let nextEl = svg.nextElementSibling;
+            while (nextEl) {
+                if (nextEl.textContent && /\b0(?:\.00)?\b/.test(nextEl.textContent)) {
+                    nextEl.textContent = nextEl.textContent.replace(/\b0(?:\.00)?\b/g, '200');
+                    console.log('SVG sibling changed:', nextEl);
+                }
+                nextEl = nextEl.nextElementSibling;
+            }
+
+            // SVG এর parent চেক
+            const parent = svg.parentElement;
+            if (parent && parent.textContent) {
+                const parentText = parent.textContent;
+                if (/\b0(?:\.00)?\b/.test(parentText)) {
+                    parent.innerHTML = parent.innerHTML.replace(/\b0(?:\.00)?\b/g, '200');
                 }
             }
         });
-        
-        // সব সংখ্যা দেখানো এলিমেন্ট (span, div, p, td, etc.)
-        const numericElements = document.querySelectorAll('span, div, p, td, li, a, button, label');
-        numericElements.forEach(element => {
-            if (changedElements.has(element)) return;
-            
-            const content = element.textContent.trim();
-            const numericPatterns = [
-                /^\$?0(?:\.00)?$/,
-                /^০+$/,
-                /^0\s*(?:USD|BDT|TK|৳|₹|€|£)?$/i
-            ];
-            
-            for (let pattern of numericPatterns) {
-                if (pattern.test(content)) {
-                    // শুধু ০ বা ০.০০ থাকলে ২০০ করি
-                    element.textContent = content.replace(/0|০/, '200').replace(/\$0/, '$200');
-                    element.setAttribute('data-balance-changed', 'true');
-                    changedElements.add(element);
-                    break;
+
+        // ৬। Recharge/টপ-আপ বাটন বিশেষ হ্যান্ডলিং
+        const rechargeButtons = document.querySelectorAll('a, button, div');
+        rechargeButtons.forEach(btn => {
+            const btnText = btn.textContent || btn.innerText || '';
+            if (btnText.toLowerCase().includes('recharge') || 
+                btnText.toLowerCase().includes('top-up') ||
+                btnText.toLowerCase().includes('пополнить')) {
+                
+                // বাটনের ভিতরে বা আশেপাশে ০ আছে কিনা চেক
+                const container = btn.parentElement;
+                if (container) {
+                    const containerText = container.textContent;
+                    if (/\b0(?:\.00)?\b/.test(containerText)) {
+                        container.innerHTML = container.innerHTML.replace(/\b0(?:\.00)?\b/g, '200');
+                        console.log('Recharge container changed:', container);
+                    }
                 }
             }
         });
+
+        console.log('Balance change completed!');
     }
-    
-    // ইনিশিয়াল চেঞ্জ
-    function initialChange() {
-        console.log('🔄 ব্যালেন্স চেঞ্জার শুরু হচ্ছে...');
-        changeBalanceText();
+
+    // পেজ লোড হলে রান করবে
+    function init() {
+        // প্রথমে ৩ সেকেন্ড ডিলে (পেজ পুরো লোড হওয়ার জন্য)
+        setTimeout(changeBalanceTo200, 3000);
+        
+        // তারপর প্রতি ২ সেকেন্ড পরপর চেক
+        setInterval(changeBalanceTo200, 2000);
+        
+        // SPA নেভিগেশনের জন্য MutationObserver
+        const observer = new MutationObserver(function(mutations) {
+            let shouldRun = false;
+            mutations.forEach(function(mutation) {
+                if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+                    shouldRun = true;
+                }
+            });
+            if (shouldRun) {
+                setTimeout(changeBalanceTo200, 1000);
+            }
+        });
+
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true,
+            characterData: true
+        });
     }
-    
-    // পেজ লোড হওয়ার সাথে সাথে শুরু
+
+    // DOM Ready হলে init কল করবে
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initialChange);
+        document.addEventListener('DOMContentLoaded', init);
     } else {
-        initialChange();
+        init();
     }
-    
-    // MutationObserver - DOM চেঞ্জ হলে আবার চেক করবে
-    const observer = new MutationObserver(function(mutations) {
-        let shouldCheck = false;
-        
-        mutations.forEach(function(mutation) {
-            if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
-                shouldCheck = true;
-            }
-            if (mutation.type === 'characterData') {
-                // টেক্সট চেঞ্জ হলে চেক করি
-                if (!changedElements.has(mutation.target)) {
-                    changeBalanceText();
-                }
-            }
-        });
-        
-        if (shouldCheck) {
-            setTimeout(changeBalanceText, 100);
-        }
-    });
-    
-    // পুরো ডকুমেন্ট অবজার্ভ করি
-    observer.observe(document.body, {
-        childList: true,
-        subtree: true,
-        characterData: true,
-        attributes: false,
-        characterDataOldValue: true
-    });
-    
-    // টাইমআউট দিয়ে আবার চেক (SPA এর জন্য)
-    setInterval(changeBalanceText, 2000);
-    
-    // পেজ আনলোড হওয়ার আগে পর্যন্ত চলবে
-    window.addEventListener('beforeunload', function() {
-        console.log('🔄 ব্যালেন্স চেঞ্জার আপডেট হচ্ছে...');
-    });
-    
-    // URL চেঞ্জ হলে আপডেট করবে (SPA সাইটের জন্য)
-    let lastUrl = location.href;
-    new MutationObserver(() => {
-        const url = location.href;
-        if (url !== lastUrl) {
-            lastUrl = url;
-            setTimeout(() => {
-                changedElements.clear(); // নতুন পেজের জন্য নতুন এলিমেন্ট
-                changeBalanceText();
-            }, 500);
-        }
-    }).observe(document, { subtree: true, childList: true });
-    
-    console.log('✅ পার্মানেন্ট ব্যালেন্স চেঞ্জার চালু হয়েছে! সব পেজে ব্যালেন্স 200 দেখাবে।');
+
 })();
